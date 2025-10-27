@@ -1,0 +1,3 @@
+alx_travel_app/.env
+alx_travel_app/db.sqlite3
+.env*
