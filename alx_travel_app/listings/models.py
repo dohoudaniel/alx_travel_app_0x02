@@ -11,6 +11,9 @@ from decimal import Decimal
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class Listing(models.Model):
@@ -117,3 +120,40 @@ class Review(models.Model):
 
     def __str__(self) -> str:
         return f"Review {self.rating} by {self.user} on {self.listing.title}"
+
+
+class Payment(models.Model):
+    STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("COMPLETED", "Completed"),
+        ("FAILED", "Failed"),
+        ("CANCELLED", "Cancelled"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    booking_reference = models.CharField(max_length=128)   # link to booking (or booking FK)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default="ETB")
+    tx_ref = models.CharField(max_length=128, unique=True)  # your unique reference you pass to Chapa
+    chapa_tx_id = models.CharField(max_length=256, blank=True, null=True)  # id returned by Chapa
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
+    metadata = models.JSONField(null=True, blank=True)  # store raw response or extra data
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def mark_completed(self, chapa_tx_id=None, extra=None):
+        self.status = "COMPLETED"
+        if chapa_tx_id:
+            self.chapa_tx_id = chapa_tx_id
+        if extra:
+            self.metadata = {**(self.metadata or {}), **extra}
+        self.save(update_fields=["status", "chapa_tx_id", "metadata", "updated_at"])
+
+    def mark_failed(self, reason=None):
+        self.status = "FAILED"
+        if reason:
+            self.metadata = {**(self.metadata or {}), "failed_reason": reason}
+        self.save(update_fields=["status", "metadata", "updated_at"])
+
+    def __str__(self):
+        return f"{self.booking_reference} - {self.tx_ref} - {self.status}"

@@ -3,7 +3,7 @@
 Serializers for the listings app: ListingSerializer, BookingSerializer.
 """
 from rest_framework import serializers
-from .models import Listing, Booking
+from .models import Listing, Booking, Payment
 
 
 class ListingSerializer(serializers.ModelSerializer):
@@ -46,3 +46,10 @@ class BookingSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "guest", "created_at"]
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = "__all__"
+        read_only_fields = ("status", "chapa_tx_id", "metadata", "created_at", "updated_at")
